@@ -1,121 +1,97 @@
-//
-//  main.cpp
-//  SDL_Test
-//
-//  Created by henry briseno on 6/8/17.
-//  Copyright © 2017 henry briseno. All rights reserved.
-//
-
-#include <stdio.h>
+#include <SDL.h>
+#include <SDL_image.h>
 #include <iostream>
-#include <SDL2/SDL.h>
-#include <SDL2_image/SDL_image.h>
-#include "Cleanup.h"
+#include"Player.h"
+#include"MapObjects.h"
 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
-const int TILE_SIZE = 40;
+//Texture image for background level1.
+SDL_Texture *LoadTexture(std::string filePath, SDL_Renderer *renderTarget)
+{
+	SDL_Texture *texture = nullptr;
+	SDL_Surface *surface = IMG_Load(filePath.c_str());
+	if (surface == NULL)
+		std::cout << "error1" << std::endl;
+	else
+	{
+		//error control if failed to load level1 background.
+		texture = SDL_CreateTextureFromSurface(renderTarget, surface);
+		if (texture == NULL)
+			std::cout << "error2" << std::endl;
+	}
+	SDL_FreeSurface(surface);
 
-void logSDLError(std::ostream &os, const std::string &msg){
-    os << msg << " error: " << SDL_GetError() << std::endl;
+	return texture;
 }
 
-SDL_Texture* loadTexture(const std::string &file, SDL_Renderer *ren)
+int main(int argc, char *argv[])
 {
-    SDL_Texture *texture = IMG_LoadTexture(ren, file.c_str());
-    if (texture == nullptr) {
-        logSDLError(std::cout,"LoadTexture");
-    }
-    return texture;
-}
 
-void renderTexture(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, int h)
-{
-    SDL_Rect destination;
-    destination.x = x;
-    destination.y = y;
-    destination.w = w;
-    destination.h = h;
-    SDL_RenderCopy(ren, tex, NULL, &destination);
-}
 
-void renderTexture(SDL_Texture *tex, SDL_Renderer *ren, int x, int y)
-{
-    int w, h;
-    SDL_QueryTexture(tex,NULL, NULL, &w, &h);
-    renderTexture(tex, ren, x, y, w, h);
-}
+	SDL_Window *window = nullptr;
+	SDL_Renderer *renderTarget = nullptr;
+	int currentTime = 0;
+	int prevTime = 0;
+	float delta = 0.0f;
+	const Uint8 *keyState;
+	SDL_Rect cornerRect = { 0, 0, 640, 480 };
+	
 
-int main(int, char**)
-{
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0){
-        logSDLError(std::cout, "SDL_Init");
-        return 1;
-    }
-    
-    SDL_Window *window = SDL_CreateWindow("Lesson 2", 100, 100, SCREEN_WIDTH,
-                                          SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    if (window == nullptr){
-        logSDLError(std::cout, "CreateWindow");
-        SDL_Quit();
-        return 1;
-    }
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1,
-                                                SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (renderer == nullptr){
-        logSDLError(std::cout, "CreateRenderer");
-        cleanup(window);
-        SDL_Quit();
-        return 1;
-    }
-    
-    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG) {
-        logSDLError(std::cout, "IMG_Init");
-        SDL_Quit();
-        return 1;
-    }
-    
-    SDL_Texture *background = loadTexture("background.png", renderer);
-    SDL_Texture *image = loadTexture("image.png", renderer);
-    if (background == nullptr || image == nullptr) {
-        cleanup(background, image, renderer, window);
-        SDL_Quit();
-        return 1;
-    }
-    
-    SDL_Event e;
-    bool quit =false;
-    while(!quit)
-    {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
-            }
-            if (e.type == SDL_KEYDOWN) {
-                quit = true;
-            }
-            if (e.type == SDL_MOUSEBUTTONDOWN) {
-                quit = true;
-            }
-        }
-    SDL_RenderClear(renderer);
-        int xTiles = SCREEN_WIDTH / TILE_SIZE;
-        int yTiles = SCREEN_HEIGHT / TILE_SIZE;
-        for (int i = 0; i < xTiles * yTiles; ++i) {
-            int x = i % xTiles;
-            int y = i / xTiles;
-            renderTexture(background, renderer, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-    
-    int iW, iH;
-    SDL_QueryTexture(image, NULL, NULL, &iW, &iH);
-    int x = SCREEN_WIDTH / 2 - iW / 2;
-    int y = SCREEN_HEIGHT / 2 - iH / 2;
-    renderTexture(image, renderer, x, y);
-    SDL_RenderPresent(renderer);
-    }
-    cleanup(background, image, renderer, window);
-    IMG_Quit();
-    SDL_Quit();
-    return 0;
+	SDL_Init(SDL_INIT_VIDEO);
+
+	window = SDL_CreateWindow("GAME1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_SHOWN);
+
+	renderTarget = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+	Player player1(renderTarget, "hero3.png", 0, 0, 7, 4);
+	Player player2(renderTarget, "bad1.png", 600, 400, 7, 4);
+	MapObjects object1(renderTarget, "darkball.png", 0, 0);
+
+	SDL_Texture *texture = LoadTexture("map.png", renderTarget);
+
+	
+	bool isRunning = true;
+	SDL_Event ev;
+
+	while (isRunning)
+	{
+		prevTime = currentTime;
+		currentTime = SDL_GetTicks();
+		delta = (currentTime - prevTime) / 1000.0f;
+		while (SDL_PollEvent(&ev) != 0)
+		{
+			if (ev.type == SDL_QUIT)
+				isRunning = false;
+		}
+
+		keyState = SDL_GetKeyboardState(NULL);
+
+		player1.Update(delta, keyState);
+		player2.Update(delta, keyState);
+		//object1.Update(delta, keyState);
+
+		//cornerRect.x = player1.Get
+
+		player1.IntersectsWith(player2);
+
+
+		SDL_RenderClear(renderTarget);
+		SDL_RenderCopy(renderTarget, texture, &cornerRect, NULL);
+		player1.Draw(renderTarget);
+		player2.Draw(renderTarget);
+		object1.Draw(renderTarget);
+		SDL_RenderPresent(renderTarget);
+	}
+
+	SDL_DestroyWindow(window);
+	SDL_DestroyRenderer(renderTarget);
+	SDL_DestroyTexture(texture);
+
+	texture = nullptr;
+	window = nullptr;
+	renderTarget = nullptr;
+
+	IMG_Quit(); //Destroys the image window to free memory
+	SDL_Quit(); //Ends SDL windows to free memory
+
+	return 0;
 }
